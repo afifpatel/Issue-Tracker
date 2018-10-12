@@ -36,8 +36,7 @@ return null;
 }
 
 function convertIssue(issue) {
-    if(issue.created) issue.created = new Date(issue.created);
-    if(issue.completionDate) issue.completionDate = new Date(issue.completionDate);
+    if(issue.date) issue.date = new Date(issue.date);
     return cleanupIssue(issue);
 }
 

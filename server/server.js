@@ -54,7 +54,7 @@ app.use(bodyParser.json());
 
 let db;
 MongoClient.connect('mongodb://localhost').then(client => {
-    db = client.db('issuetracker');
+    db = client.db('lmr');
     app.listen(3000, () => {
         console.log('App startedddddd on port 3000');
     });
@@ -62,29 +62,30 @@ MongoClient.connect('mongodb://localhost').then(client => {
     console.log('ERROR:', error);
 });
 
-app.get('/api/issues', (req,res) => {
+app.get('/api/landmarks', (req,res) => {
     const filter = {};
     // console.log(req);
-    if (req.query.status) filter.status = req.query.status;
-    if(req.query.effort_lte || req.query.effort_gte) filter.effort = {};
-    if(req.query.effort_lte)
-        filter.effort.$lte = parseInt(req.query.effort_lte, 10);
-    if(req.query.effort_gte)
-        filter.effort.$gte = parseInt(req.query.effort_gte, 10)
-    if(req.query.owner)
-        filter.owner = req.query.owner;
+    // if (req.query.status) filter.status = req.query.status;
+    // if(req.query.effort_lte || req.query.effort_gte) filter.effort = {};
+    // if(req.query.effort_lte)
+    //     filter.effort.$lte = parseInt(req.query.effort_lte, 10);
+    // if(req.query.effort_gte)
+    //     filter.effort.$gte = parseInt(req.query.effort_gte, 10)
+    // if(req.query.owner)
+    //     filter.owner = req.query.owner;
 
-    db.collection('issues').find(filter).toArray().then( issues => {
-        const metadata = { total_count: issues.length };
-        res.json({ _metadata: metadata, records : issues})
+    db.collection('lmr').find(filter).toArray().then( landmarks => {
+        const metadata = { total_count: landmarks.length };
+        res.json({ _metadata: metadata, records : landmarks})
     }).catch(error =>{
         console.log(error);
         res.status(500).json({ message: `Internal Server Error: ${error}` });
     });
  });
 
-app.get('/api/issues/:id', (req,res) =>{
+app.get('/api/landmark/:id', (req,res) =>{
         let issueId;
+        console.log("PARAMSSS ", req.params)
         try {
             issueId = new ObjectId(req.params.id);
         } catch (error){
@@ -92,9 +93,10 @@ app.get('/api/issues/:id', (req,res) =>{
             return;
         }
         
-        db.collection('issues').find({ _id : issueId }).limit(1)
+        db.collection('lmr').find({ _id : issueId }).limit(1)
         .next()
         .then( issue => { 
+            console.log("landmark retrieved from data ", issue)
             if (!issue) res.status(404).json({ message: `No such issue: ${issueId}` });
             else res.json(issue);
         })
@@ -104,27 +106,26 @@ app.get('/api/issues/:id', (req,res) =>{
         });
     });
  
-app.post('/api/issues', (req,res) => {
-    const newIssue = req.body;
+app.post('/api/landmark', (req,res) => {
+    const newLandmark = req.body;
     // newIssue.id = issues.length + 1;
-    newIssue.created = new Date();
-   // console.log(JSON.stringify(newIssue));
-    if(!newIssue.status)
-        newIssue.status = 'New';
+    newLandmark.date = new Date();
+    newLandmark.location.lat= parseFloat(newLandmark.location.lat);
+    newLandmark.location.lng= parseFloat(newLandmark.location.lng)
+   console.log(JSON.stringify(newLandmark));
+    // const err = Issue.validateIssue(newLandmark)
+    // console.log(newLandmark);
 
-    const err = Issue.validateIssue(newIssue)
-    console.log(newIssue);
-
-    if(err){
-        res.status(422).json({ message: `Invalid request: ${err}` });
-        return;
-    }
+    // if(err){
+    //     res.status(422).json({ message: `Invalid request: ${err}` });
+    //     return;
+    // }
 
    // issues.push(newIssue);
-    db.collection('issues').insertOne(newIssue).then( result => 
-        db.collection('issues').findOne({ _id: result.insertedId })).then( query_result => 
-            db.collection('issues').count().then( metadata => 
-                res.json({ _metadata: metadata , new_issue : query_result})        
+    db.collection('lmr').insertOne(newLandmark).then( result => 
+        db.collection('lmr').findOne({ _id: result.insertedId })).then( query_result => 
+            db.collection('lmr').count().then( metadata => 
+                res.json({ _metadata: metadata , new_landmark : query_result})        
             )        
         ).catch(err =>{
         console.log(err);
@@ -133,33 +134,40 @@ app.post('/api/issues', (req,res) => {
 });
 
 
-app.put('/api/issues/:id', (req, res) => {
-  let issueId;
+app.put('/api/landmark/:id', (req, res) => {
+  let landmarkId;
   try {
-    issueId = new ObjectId(req.params.id);
+    landmarkId = new ObjectId(req.params.id);
   } catch (error) {
     res.status(422).json({ message: `Invalid issue ID format: ${error}` });
     return;
   }
 
-  const issue = req.body;
-  delete issue._id;
-//   console.log("issueId =>",issueId);
+  const landmark = req.body;
+  console.log("landmark put req body",landmark);
+
+
+  delete landmark._id;
 
 //   console.log("issue =>",issue);
+landmark.location.lat= parseFloat(landmark.location.lat);
+landmark.location.lng= parseFloat(landmark.location.lng)
+landmark.date = new Date(landmark.date);
 
-  const err = Issue.validateIssue(issue);
-  if (err) {
-    res.status(422).json({ message: `Invalid request: ${err}` });
-    return;
-  }
+console.log(JSON.stringify(landmark));
 
-  db.collection('issues').updateOne({ _id: issueId }, { $set : Issue.convertIssue(issue)}).then(() =>
-    db.collection('issues').find({ _id: issueId }).limit(1)
+//   const err = Issue.validateIssue(landmark);
+//   if (err) {
+//     res.status(422).json({ message: `Invalid request: ${err}` });
+//     return;
+//   }
+
+  db.collection('lmr').updateOne({ _id: landmarkId }, { $set : landmark}).then(() =>
+    db.collection('lmr').find({ _id: landmarkId }).limit(1)
     .next()
   )
-  .then(savedIssue => {
-    res.json(savedIssue);
+  .then(savedLandmark => {
+    res.json(savedLandmark);
   })
   .catch(error => {
     console.log(error);
@@ -167,17 +175,17 @@ app.put('/api/issues/:id', (req, res) => {
   });
 });
 
-app.delete('/api/issues/:id', (req,res) => {
-    let issueId;
+app.delete('/api/landmark/:id', (req,res) => {
+    let landmarkId;
 try{
-    issueId = new ObjectId(req.params.id);
+    landmarkId = new ObjectId(req.params.id);
 }
 catch (error){
     res.status(422).json({ message : `Invalid issue ID format: ${error}`});
     return;
 }
     
-    db.collection('issues').deleteOne({ _id : issueId }).then( deleteResult => {
+    db.collection('lmr').deleteOne({ _id : landmarkId }).then( deleteResult => {
         if(deleteResult.result.n === 1) res.json({ status: 'OK'});
         else res.json({ status: 'Warning: object not found' });
     })
